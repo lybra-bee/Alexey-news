@@ -100,11 +100,15 @@ Open-source сообщество вносит значительный вкла�
         else:
             image_html = f'<img src="{image_url}" alt="Иллюстрация" style="max-width: 100%; border-radius: 8px;">'
         
-        # Простое форматирование текста
-        html_content = content.replace('\n\n', '</p><p>')
-        html_content = html_content.replace('\n', '<br>')
+        # Правильное форматирование текста
+        html_content = content
         html_content = html_content.replace('# ', '<h2>').replace('\n', '</h2>')
         html_content = html_content.replace('## ', '<h3>').replace('\n', '</h3>')
+        html_content = html_content.replace('\n\n', '</p><p>')
+        html_content = html_content.replace('\n', '<br>')
+        
+        # Убираем лишние теги
+        html_content = html_content.replace('<h2></h2>', '').replace('<h3></h3>', '')
         
         return f"""
 <!DOCTYPE html>
@@ -144,9 +148,22 @@ Open-source сообщество вносит значительный вкла�
         h2 {{
             color: #2c3e50;
             margin-top: 30px;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
         }}
         h3 {{
             color: #34495e;
+            margin-top: 25px;
+        }}
+        p {{
+            margin: 15px 0;
+            text-align: justify;
+        }}
+        .content {{
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #3498db;
         }}
     </style>
 </head>
@@ -181,7 +198,7 @@ Open-source сообщество вносит значительный вкла�
         print("✅ Файл current-news.html обновлен")
         return True
 
-if __name__ == "__main__":
+if _name_ == "_main_":
     generator = NewsGenerator()
     success = generator.update_news()
     
