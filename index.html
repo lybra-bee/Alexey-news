@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Новости нейросетей</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        header h1 {
+            color: #2c3e50;
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🤖 Новости нейросетей и технологий</h1>
+            <p>Автоматически обновляется каждые 12 часов</p>
+        </header>
+        
+        <main>
+            <iframe src="current-news.html" width="100%" height="800" 
+                    frameborder="0" id="news-frame"></iframe>
+        </main>
+        
+        <footer>
+            <p>Сгенерировано: <span id="update-time">Загрузка...</span></p>
+        </footer>
+    </div>
+
+    <script>
+        document.getElementById('update-time').textContent = new Date().toLocaleString('ru-RU');
+    </script>
+</body>
+</html>
