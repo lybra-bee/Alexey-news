@@ -198,7 +198,7 @@ Open-source сообщество вносит значительный вкла�
         print("✅ Файл current-news.html обновлен")
         return True
 
-if _name_ == "_main_":
+if __name__ == "__main__":
     generator = NewsGenerator()
     success = generator.update_news()
     
