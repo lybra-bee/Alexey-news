@@ -4,6 +4,7 @@
 import requests
 import datetime
 import os
+import random
 
 class NewsGenerator:
     def __init__(self):
@@ -89,9 +90,20 @@ class NewsGenerator:
         return current_theme
     
     def generate_image(self):
-        """Простая надежная картинка"""
-        print("🖼️ Используем placeholder изображение")
-        return "https://via.placeholder.com/800x400/2c3e50/ecf0f1?text=AI+Neural+Networks+News"
+        """Гарантированно работающее изображение"""
+        print("🖼️ Используем надежное изображение")
+        
+        # Список абсолютно надежных изображений
+        reliable_images = [
+            "https://placehold.co/800x400/2c3e50/ecf0f1/png?text=AI+Neural+Networks",
+            "https://placehold.co/800x400/3498db/ffffff/png?text=Artificial+Intelligence",
+            "https://placehold.co/800x400/e74c3c/ffffff/png?text=Machine+Learning",
+            "https://placehold.co/800x400/27ae60/ffffff/png?text=Computer+Vision",
+            "https://placehold.co/800x400/9b59b6/ffffff/png?text=Deep+Learning",
+            "https://placehold.co/800x400/f39c12/ffffff/png?text=AI+Research"
+        ]
+        
+        return random.choice(reliable_images)
     
     def format_html(self, content, image_url=None):
         """Форматирование контента в HTML"""
