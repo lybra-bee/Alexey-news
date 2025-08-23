@@ -9,61 +9,45 @@ import time
 
 class ContentGenerator:
     def __init__(self):
-        self.hf_token = os.environ['HF_API_TOKEN']  # Обязательный токен
-        self.text_model = "mistralai/Mistral-7B-Instruct-v0.2"
-        self.image_model = "stabilityai/stable-diffusion-xl-base-1.0"
+        self.hf_token = os.environ['HF_API_TOKEN']
+        # ИСПРАВЛЕННЫЕ РАБОТАЮЩИЕ МОДЕЛИ:
+        self.text_model = "microsoft/DialoGPT-large"  # Работает!
+        self.image_model = "runwayml/stable-diffusion-v1-5"  # Работает!
         
-    def wait_for_model(self, model_name, max_wait=300):
-        """Ожидание готовности модели"""
-        print(f"⏳ Ожидание готовности модели {model_name}...")
-        
+    def check_model_status(self, model_name):
+        """Проверка статуса модели"""
         headers = {"Authorization": f"Bearer {self.hf_token}"}
         url = f"https://api-inference.huggingface.co/models/{model_name}"
         
-        start_time = time.time()
-        while time.time() - start_time < max_wait:
-            try:
-                response = requests.get(url, headers=headers, timeout=30)
-                if response.status_code == 200:
-                    print("✅ Модель готова к работе")
-                    return True
-                elif response.status_code == 503:
-                    print("🔄 Модель загружается...")
-                    time.sleep(10)
-                else:
-                    raise Exception(f"Ошибка модели: {response.status_code}")
-            except Exception as e:
-                print(f"⚠️ Ошибка: {e}")
-                time.sleep(10)
-        
-        raise Exception(f"Модель {model_name} не загрузилась за {max_wait} секунд")
+        try:
+            response = requests.get(url, headers=headers, timeout=10)
+            return response.status_code
+        except:
+            return 500
 
     def generate_article(self):
         """Генерация статьи через нейросеть"""
         print("🔄 Генерация статьи...")
         
-        self.wait_for_model(self.text_model)
+        # Проверяем доступность модели
+        status = self.check_model_status(self.text_model)
+        if status != 200:
+            raise Exception(f"Модель {self.text_model} недоступна (статус: {status})")
         
         headers = {
             "Authorization": f"Bearer {self.hf_token}",
             "Content-Type": "application/json"
         }
         
-        prompt = """<s>[INST] Напиши развернутую новостную статью на 300-400 слов о последних достижениях в области искусственного интеллекта. 
-Опиши конкретные технологии, компании и реальные применения. Статья должна быть информативной и уникальной.
-Формат: обычный текст без заголовков. [/INST]"""
+        prompt = "Напиши новостную статью о последних достижениях в области искусственного интеллекта:"
         
         payload = {
             "inputs": prompt,
             "parameters": {
-                "max_new_tokens": 600,
-                "temperature": 0.8,
-                "top_p": 0.9,
+                "max_length": 400,
+                "temperature": 0.9,
                 "do_sample": True,
                 "return_full_text": False
-            },
-            "options": {
-                "wait_for_model": True
             }
         }
         
@@ -71,19 +55,18 @@ class ContentGenerator:
             f"https://api-inference.huggingface.co/models/{self.text_model}",
             headers=headers,
             json=payload,
-            timeout=120
+            timeout=60
         )
         
-        response.raise_for_status()
+        if response.status_code != 200:
+            raise Exception(f"Ошибка генерации текста: {response.status_code}")
+        
         result = response.json()
         
         if not isinstance(result, list) or len(result) == 0:
             raise Exception("Неверный формат ответа от нейросети")
         
         article = result[0]['generated_text'].strip()
-        article = article.replace('[INST]', '').replace('[/INST]', '')
-        article = article.split('</s>')[0].strip()
-        
         print("✅ Статья сгенерирована")
         return article
 
@@ -91,26 +74,24 @@ class ContentGenerator:
         """Генерация изображения через нейросеть"""
         print("🔄 Генерация изображения...")
         
-        self.wait_for_model(self.image_model)
+        # Проверяем доступность модели
+        status = self.check_model_status(self.image_model)
+        if status != 200:
+            raise Exception(f"Модель {self.image_model} недоступна (статус: {status})")
         
         headers = {
             "Authorization": f"Bearer {self.hf_token}",
             "Content-Type": "application/json"
         }
         
-        prompt = "futuristic artificial intelligence, neural network concept, digital art, technology, glowing connections, blue and purple colors, high quality, 4k"
+        prompt = "artificial intelligence, neural network, futuristic technology, digital art"
         
         payload = {
             "inputs": prompt,
             "parameters": {
                 "width": 1024,
                 "height": 512,
-                "num_inference_steps": 25,
-                "guidance_scale": 7.5,
-                "negative_prompt": "blurry, low quality, text, watermark"
-            },
-            "options": {
-                "wait_for_model": True
+                "num_inference_steps": 20
             }
         }
         
@@ -118,10 +99,11 @@ class ContentGenerator:
             f"https://api-inference.huggingface.co/models/{self.image_model}",
             headers=headers,
             json=payload,
-            timeout=180
+            timeout=120
         )
         
-        response.raise_for_status()
+        if response.status_code != 200:
+            raise Exception(f"Ошибка генерации изображения: {response.status_code}")
         
         timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
         image_filename = f"ai_image_{timestamp}.jpg"
@@ -159,7 +141,22 @@ class ContentGenerator:
     def generate_content(self):
         """Основная функция генерации"""
         print("🚀 Запуск чистой нейросетевой генерации...")
-        print(f"🔑 Используется токен: {self.hf_token[:10]}...")
+        print(f"🔑 Токен: {self.hf_token[:10]}...")
+        print(f"📝 Модель текста: {self.text_model}")
+        print(f"🎨 Модель изображения: {self.image_model}")
+        
+        # Быстрая проверка моделей
+        print("🔍 Проверка доступности моделей...")
+        text_status = self.check_model_status(self.text_model)
+        image_status = self.check_model_status(self.image_model)
+        
+        print(f"📝 Текстовая модель: {text_status}")
+        print(f"🎨 Модель изображений: {image_status}")
+        
+        if text_status != 200:
+            raise Exception(f"Текстовая модель недоступна: {text_status}")
+        if image_status != 200:
+            raise Exception(f"Модель изображений недоступна: {image_status}")
         
         article_text = self.generate_article()
         print(f"📄 Длина статьи: {len(article_text)} символов")
