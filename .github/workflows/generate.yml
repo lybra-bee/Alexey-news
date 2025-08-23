@@ -1,4 +1,4 @@
-name: Pure AI Content Generation
+name: AI Content Generation
 
 on:
   workflow_dispatch:
@@ -8,7 +8,7 @@ on:
 jobs:
   generate:
     runs-on: ubuntu-latest
-    timeout-minutes: 30  # Больше времени для нейросетей
+    timeout-minutes: 30
 
     steps:
     - name: Checkout repository
@@ -22,15 +22,17 @@ jobs:
     - name: Install dependencies
       run: pip install requests
 
-    - name: Pure AI generation
+    - name: Generate AI content
       env:
         HF_API_TOKEN: ${{ secrets.HF_API_TOKEN }}
-      run: python news_generator.py
+      run: |
+        echo "🚀 Запуск генерации с работающими моделями..."
+        python news_generator.py
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: pure-ai-content-${{ github.run_number }}
+        name: ai-content-${{ github.run_number }}
         path: |
           article.txt
           tilda_data.json
@@ -38,15 +40,11 @@ jobs:
 
     - name: Create summary
       run: |
-        echo "## 🤖 Чистая нейросетевая генерация" >> $GITHUB_STEP_SUMMARY
+        echo "## 🤖 Генерация через работающие модели" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### 📊 Результаты" >> $GITHUB_STEP_SUMMARY
-        echo "- **Длина статьи:** $(cat article.txt | wc -c) байт" >> $GITHUB_STEP_SUMMARY
-        echo "- **Изображение:** $(ls -la *.jpg | head -1 | awk '{print $5}') байт" >> $GITHUB_STEP_SUMMARY
-        echo "- **Модели:** Mistral-7B + Stable Diffusion XL" >> $GITHUB_STEP_SUMMARY
+        echo "- **Статья:** $(cat article.txt | wc -c) байт" >> $GITHUB_STEP_SUMMARY
+        echo "- **Изображение:** $(ls -la *.jpg 2>/dev/null | head -1 | awk '{print $5}') байт" >> $GITHUB_STEP_SUMMARY
+        echo "- **Модели:** GPT-2 + Stable Diffusion v1-4" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### 📝 Предпросмотр" >> $GITHUB_STEP_SUMMARY
-        echo '```' >> $GITHUB_STEP_SUMMARY
-        head -n 2 article.txt >> $GITHUB_STEP_SUMMARY
-        echo '...' >> $GITHUB_STEP_SUMMARY
-        echo '```' >> $GITHUB_STEP_SUMMARY
+        echo "### 🎯 Статус: Успешно" >> $GITHUB_STEP_SUMMARY
