@@ -4,212 +4,181 @@
 import requests
 import datetime
 import os
-import random
+import json
+import base64
 
-class NewsGenerator:
+class ContentGenerator:
     def __init__(self):
-        self.hf_token = os.environ.get('HF_API_TOKEN', '')
-        self.api_url = "https://api-inference.huggingface.co/models/microsoft/DialoGPT-large"
-        print(f"Токен HF: {'установлен' if self.hf_token else 'не установлен'}")
+        self.hf_token = os.environ['HF_API_TOKEN']
+        self.sd_model = "stabilityai/stable-diffusion-2-1"
+        self.text_model = "microsoft/DialoGPT-large"
         
     def generate_article(self):
-        """Генерация статьи"""
-        try:
-            if not self.hf_token:
-                print("⚠️  Используем fallback контент")
-                return self.create_fallback_content()
-            
-            headers = {"Authorization": f"Bearer {self.hf_token}", "Content-Type": "application/json"}
-            
-            prompt = """
-Создай развернутую новостную статью объемом 600-800 слов о последних достижениях в области искусственного интеллекта и нейронных сетей. 
-Статья должна быть информативной и содержательной, охватывать актуальные тенденции и developments в этой сфере.
-Включи конкретные примеры, статистику и экспертные мнения, но не используй явные заголовки разделов типа "Введение", "Основная часть", "Заключение".
-            """
-            
-            payload = {
-                "inputs": prompt,
-                "parameters": {
-                    "max_length": 800,
-                    "temperature": 0.8,
-                    "do_sample": True,
-                    "return_full_text": False
-                }
+        """Генерация статьи через HF API"""
+        print("🔄 Генерация статьи...")
+        
+        headers = {
+            "Authorization": f"Bearer {self.hf_token}",
+            "Content-Type": "application/json"
+        }
+        
+        prompt = """
+Создай новостную статью на 300-400 слов о последних достижениях в области искусственного интеллекта. 
+Опиши конкретные технологии, компании и применения. Статья должна быть информативной и актуальной.
+        """
+        
+        payload = {
+            "inputs": prompt,
+            "parameters": {
+                "max_length": 500,
+                "temperature": 0.9,
+                "do_sample": True,
+                "return_full_text": False
             }
+        }
+        
+        try:
+            response = requests.post(
+                f"https://api-inference.huggingface.co/models/{self.text_model}",
+                headers=headers,
+                json=payload,
+                timeout=60
+            )
             
-            print("🔄 Запрос к API...")
-            response = requests.post(self.api_url, headers=headers, json=payload, timeout=30)
+            response.raise_for_status()
+            result = response.json()
             
-            if response.status_code == 200:
-                result = response.json()
-                if isinstance(result, list) and len(result) > 0:
-                    print("✅ Статья сгенерирована через API")
-                    article = result[0]['generated_text']
-                    # Убираем возможные явные заголовки
-                    article = article.replace("Введение:", "").replace("Заключение:", "")
-                    article = article.replace("Введение", "").replace("Заключение", "")
-                    return article
+            if isinstance(result, list) and len(result) > 0:
+                article = result[0]['generated_text']
+                print("✅ Статья сгенерирована")
+                return article
+            else:
+                raise Exception("Неверный формат ответа от API")
+                
+        except Exception as e:
+            print(f"❌ Ошибка генерации текста: {e}")
+            raise
+
+    def generate_image(self, article_text):
+        """Генерация изображения по содержанию статьи"""
+        print("🔄 Генерация изображения...")
+        
+        headers = {
+            "Authorization": f"Bearer {self.hf_token}",
+            "Content-Type": "application/json"
+        }
+        
+        # Создаем промпт для изображения
+        image_prompt = """
+Футуристическое изображение искусственного интеллекта, нейронные сети, технологии, 
+голубые и фиолетовые тона, цифровое искусство, hi-tech стиль
+        """
+        
+        payload = {
+            "inputs": image_prompt,
+            "parameters": {
+                "width": 1024,
+                "height": 512,
+                "num_inference_steps": 20,
+                "guidance_scale": 7.5
+            }
+        }
+        
+        try:
+            response = requests.post(
+                f"https://api-inference.huggingface.co/models/{self.sd_model}",
+                headers=headers,
+                json=payload,
+                timeout=120
+            )
             
-            return self.create_fallback_content()
+            response.raise_for_status()
+            
+            # Сохраняем изображение
+            timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+            image_filename = f"article_image_{timestamp}.jpg"
+            
+            with open(image_filename, 'wb') as f:
+                f.write(response.content)
+            
+            print("✅ Изображение сгенерировано и сохранено")
+            return image_filename
             
         except Exception as e:
-            print(f"❌ Ошибка: {e}")
-            return self.create_fallback_content()
+            print(f"❌ Ошибка генерации изображения: {e}")
+            raise
+
+    def prepare_for_tilda(self, article_text, image_path):
+        """Подготовка данных для Tilda"""
+        print("📝 Подготовка данных для Tilda...")
+        
+        # Читаем изображение как base64 для возможного использования
+        image_base64 = None
+        try:
+            with open(image_path, 'rb') as img_file:
+                image_base64 = base64.b64encode(img_file.read()).decode('utf-8')
+        except:
+            pass
+        
+        tilda_data = {
+            "version": "1.0",
+            "title": "Новости нейросетей и ИИ",
+            "date": datetime.datetime.now().strftime("%d.%m.%Y %H:%M"),
+            "content": article_text,
+            "image_filename": image_path,
+            "image_base64": image_base64,
+            "short_description": article_text[:120] + "..." if len(article_text) > 120 else article_text,
+            "tags": ["AI", "нейросети", "технологии", "машинное обучение"],
+            "seo_title": "Последние новости искусственного интеллекта и нейросетей",
+            "seo_description": "Свежие статьи о развитии технологий ИИ, машинного обучения и нейронных сетей"
+        }
+        
+        # Сохраняем в JSON
+        with open('tilda_data.json', 'w', encoding='utf-8') as f:
+            json.dump(tilda_data, f, ensure_ascii=False, indent=2)
+        
+        # Сохраняем текст отдельно
+        with open('article.txt', 'w', encoding='utf-8') as f:
+            f.write(article_text)
+        
+        return tilda_data
+
+    def generate_content(self):
+        """Основная функция генерации контента"""
+        try:
+            # Генерируем статью
+            article_text = self.generate_article()
+            
+            # Генерируем изображение
+            image_path = self.generate_image(article_text)
+            
+            # Подготавливаем для Tilda
+            tilda_data = self.prepare_for_tilda(article_text, image_path)
+            
+            print("✅ Генерация завершена успешно!")
+            return tilda_data
+            
+        except Exception as e:
+            print(f"❌ Критическая ошибка: {e}")
+            return None
+
+def main():
+    # Проверяем наличие токена
+    if 'HF_API_TOKEN' not in os.environ:
+        print("❌ Ошибка: HF_API_TOKEN не установлен в переменных окружения")
+        print("Добавьте токен в Secrets GitHub: HF_API_TOKEN=your_token_here")
+        return
     
-    def create_fallback_content(self):
-        """Резервный контент"""
-        themes = [
-            """Современные нейросетевые архитектуры продолжают стремительно развиваться, открывая новые горизонты в области искусственного интеллекта. За последние месяцы исследователи представили несколько прорывных технологий, которые кардинально меняют подход к машинному обучению.
-
-Одним из наиболее значимых достижений стало создание более эффективных трансформерных моделей, которые демонстрируют беспрецедентную производительность при обработке естественного языка. Эти модели не только улучшают качество генерации текста, но и значительно снижают вычислительные затраты, что делает их более доступными для широкого круга разработчиков.
-
-В сфере компьютерного зрения также наблюдаются существенные продвижения. Новые алгоритмы позволяют достигать высочайшей точности распознавания образов даже в условиях ограниченных данных. Это открывает возможности для применения AI в таких областях, как медицинская диагностика, автономные транспортные средства и промышленная автоматизация.
-
-Эксперты отмечают, что важным трендом становится развитие мультимодальных систем, способных одновременно обрабатывать текст, изображения и аудио. Такие системы демонстрируют удивительную способность к пониманию контекста и генерации когерентных ответов across different modalities.
-
-Сообщество open-source вносит неоценимый вклад в развитие экосистемы. Проекты на платформах типа Hugging Face становятся стандартом де-факто, предоставляя исследователям и разработчикам доступ к передовым моделям и инструментам.
-
-Будущее искусственного интеллекта выглядит чрезвычайно перспективно. Ожидается, что в ближайшие годы мы станем свидетелями еще более впечатляющих достижений, которые преобразуют множество отраслей и улучшат качество жизни людей по всему миру.""",
-
-            """Прогресс в области генеративного искусственного интеллекта достиг беспрецедентных масштабов. Всего за последний квартал было представлено несколько инновационных моделей, которые кардинально меняют ландшафт машинного обучения.
-
-Языковые модели нового поколения демонстрируют способность к глубокому пониманию контекста и генерации человекоподобного текста. Эти достижения становятся возможными благодаря усовершенствованным архитектурам и более эффективным методам обучения.
-
-В области компьютерного зрения исследователи добились значительных успехов в создании систем, способных accurately анализировать сложные визуальные сцены. Это имеет profound implications для таких приложений, как augmented reality, autonomous navigation и automated quality control.
-
-Важным направлением развития становится focus на этические аспекты AI. Разработчики все больше attention уделяют вопросам fairness, transparency и accountability своих систем, что способствует responsible development технологии.
-
-Интеграция AI с другими emerging technologies, такими как quantum computing и neuromorphic hardware, открывает новые возможности для создания еще более powerful и efficient систем.
-
-Сообщество researchers и developers продолжает активно collaborate через open-source platforms, accelerating pace innovation и democratizing access к передовым технологиям.
-
-Перспективы развития искусственного интеллекта остаются extremely promising. Continuous advancements в algorithms, hardware и methodologies обещают привести к созданию еще более sophisticated и capable систем в near future."""
-        ]
-        
-        current_theme = themes[datetime.datetime.now().day % len(themes)]
-        return current_theme
+    generator = ContentGenerator()
+    result = generator.generate_content()
     
-    def generate_image(self):
-        """Гарантированно работающее изображение"""
-        print("🖼️ Используем надежное изображение")
-        
-        # Список абсолютно надежных изображений
-        reliable_images = [
-            "https://placehold.co/800x400/2c3e50/ecf0f1/png?text=AI+Neural+Networks",
-            "https://placehold.co/800x400/3498db/ffffff/png?text=Artificial+Intelligence",
-            "https://placehold.co/800x400/e74c3c/ffffff/png?text=Machine+Learning",
-            "https://placehold.co/800x400/27ae60/ffffff/png?text=Computer+Vision",
-            "https://placehold.co/800x400/9b59b6/ffffff/png?text=Deep+Learning",
-            "https://placehold.co/800x400/f39c12/ffffff/png?text=AI+Research"
-        ]
-        
-        return random.choice(reliable_images)
-    
-    def format_html(self, content, image_url=None):
-        """Форматирование контента в HTML"""
-        if not image_url:
-            image_html = '<div class="image-placeholder">🖼️ Изображение появится позже</div>'
-        else:
-            image_html = f'<img src="{image_url}" alt="Иллюстрация к статье о нейросетях" style="max-width: 100%; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); margin: 20px 0;">'
-        
-        # Форматируем текст без явных заголовков
-        html_content = content.replace('\n\n', '</p><p>')
-        html_content = html_content.replace('\n', '<br>')
-        
-        return f"""
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Новости AI</title>
-    <style>
-        body {{
-            font-family: 'Arial', sans-serif;
-            margin: 0;
-            padding: 20px;
-            background: white;
-            line-height: 1.6;
-        }}
-        .news-container {{
-            max-width: 800px;
-            margin: 0 auto;
-        }}
-        .image-placeholder {{
-            background: #ecf0f1;
-            padding: 60px;
-            text-align: center;
-            border-radius: 8px;
-            margin: 20px 0;
-            font-size: 18px;
-            color: #7f8c8d;
-        }}
-        .footer {{
-            margin-top: 30px;
-            padding-top: 15px;
-            border-top: 1px solid #ddd;
-            color: #7f8c8d;
-            font-size: 14px;
-        }}
-        p {{
-            margin: 15px 0;
-            text-align: justify;
-            font-size: 16px;
-        }}
-        .content {{
-            background: #f8f9fa;
-            padding: 25px;
-            border-radius: 8px;
-            border-left: 4px solid #3498db;
-        }}
-        img {{
-            transition: transform 0.3s ease;
-        }}
-        img:hover {{
-            transform: scale(1.02);
-        }}
-    </style>
-</head>
-<body>
-    <div class="news-container">
-        {image_html}
-        <div class="content">
-            <p>{html_content}</p>
-        </div>
-        <div class="footer">
-            Обновлено: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-        </div>
-    </div>
-</body>
-</html>
-        """
-    
-    def update_news(self):
-        """Основная функция обновления новостей"""
-        print("🔄 Запуск генерации новости...")
-        
-        # Генерируем статью
-        article_content = self.generate_article()
-        print("✅ Статья сгенерирована")
-        
-        # Генерируем изображение
-        image_url = self.generate_image()
-        
-        # Форматируем в HTML
-        html_content = self.format_html(article_content, image_url)
-        
-        # Сохраняем
-        with open('current-news.html', 'w', encoding='utf-8') as f:
-            f.write(html_content)
-        
-        print("✅ Файл current-news.html обновлен")
-        return True
+    if result:
+        print("\n" + "="*60)
+        print("РЕЗУЛЬТАТЫ ГЕНЕРАЦИИ:")
+        print(f"📄 Статья: {len(result['content'])} символов")
+        print(f"🖼️ Изображение: {result['image_filename']}")
+        print(f"💾 Данные сохранены в: tilda_data.json, article.txt")
+        print("="*60)
 
 if __name__ == "__main__":
-    generator = NewsGenerator()
-    success = generator.update_news()
-    
-    if success:
-        print("🎉 Генерация завершена успешно!")
-    else:
-        print("❌ Ошибка генерации")
+    main()
