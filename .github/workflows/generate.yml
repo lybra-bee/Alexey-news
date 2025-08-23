@@ -1,4 +1,4 @@
-name: AI Content Generation
+name: Pure AI Content Generation
 
 on:
   workflow_dispatch:
@@ -8,7 +8,7 @@ on:
 jobs:
   generate:
     runs-on: ubuntu-latest
-    timeout-minutes: 30  # Увеличиваем таймаут для нейросетей
+    timeout-minutes: 30  # Больше времени для нейросетей
 
     steps:
     - name: Checkout repository
@@ -22,7 +22,7 @@ jobs:
     - name: Install dependencies
       run: pip install requests
 
-    - name: Generate AI content
+    - name: Pure AI generation
       env:
         HF_API_TOKEN: ${{ secrets.HF_API_TOKEN }}
       run: python news_generator.py
@@ -30,7 +30,7 @@ jobs:
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: ai-content-${{ github.run_number }}
+        name: pure-ai-content-${{ github.run_number }}
         path: |
           article.txt
           tilda_data.json
@@ -38,12 +38,12 @@ jobs:
 
     - name: Create summary
       run: |
-        echo "## 🤖 Результаты нейросетевой генерации" >> $GITHUB_STEP_SUMMARY
+        echo "## 🤖 Чистая нейросетевая генерация" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### 📊 Статистика" >> $GITHUB_STEP_SUMMARY
+        echo "### 📊 Результаты" >> $GITHUB_STEP_SUMMARY
         echo "- **Длина статьи:** $(cat article.txt | wc -c) байт" >> $GITHUB_STEP_SUMMARY
-        echo "- **Изображения:** $(ls -la *.jpg 2>/dev/null | wc -l || echo 0) шт." >> $GITHUB_STEP_SUMMARY
-        echo "- **Время:** $(date '+%H:%M:%S')" >> $GITHUB_STEP_SUMMARY
+        echo "- **Изображение:** $(ls -la *.jpg | head -1 | awk '{print $5}') байт" >> $GITHUB_STEP_SUMMARY
+        echo "- **Модели:** Mistral-7B + Stable Diffusion XL" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### 📝 Предпросмотр" >> $GITHUB_STEP_SUMMARY
         echo '```' >> $GITHUB_STEP_SUMMARY
