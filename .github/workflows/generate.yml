@@ -3,7 +3,7 @@ name: AI Content Generation
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 */6 * * *'  # Каждые 6 часов
+    - cron: '0 */6 * * *'
 
 jobs:
   generate:
@@ -25,6 +25,20 @@ jobs:
     - name: Generate AI content
       run: python news_generator.py
 
+    - name: Show generated files
+      run: |
+        echo "📄 Содержание article.txt:"
+        echo "========================"
+        cat article.txt
+        echo ""
+        echo "🖼️ Список изображений:"
+        echo "===================="
+        ls -la *.jpg 2>/dev/null || echo "Нет изображений"
+        echo ""
+        echo "📊 Данные Tilda:"
+        echo "================"
+        cat tilda_data.json
+
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
@@ -41,6 +55,10 @@ jobs:
         echo "### 📊 Результаты" >> $GITHUB_STEP_SUMMARY
         echo "- **Статья:** $(cat article.txt | wc -c) байт" >> $GITHUB_STEP_SUMMARY
         echo "- **Изображения:** $(ls -la *.jpg 2>/dev/null | wc -l) шт." >> $GITHUB_STEP_SUMMARY
-        echo "- **Источник:** OpenRouter + Unsplash" >> $GITHUB_STEP_SUMMARY
+        echo "- **Время:** $(date '+%H:%M:%S')" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### 🎯 Статус: Успешно ✅" >> $GITHUB_STEP_SUMMARY
+        echo "### 📝 Предпросмотр" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        head -n 3 article.txt >> $GITHUB_STEP_SUMMARY
+        echo '...' >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
