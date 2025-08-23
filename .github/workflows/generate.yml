@@ -1,4 +1,4 @@
-name: Generate AI Content
+name: AI Content Generation
 
 on:
   workflow_dispatch:
@@ -8,7 +8,7 @@ on:
 jobs:
   generate:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30  # Увеличиваем таймаут для нейросетей
 
     steps:
     - name: Checkout repository
@@ -22,26 +22,15 @@ jobs:
     - name: Install dependencies
       run: pip install requests
 
-    - name: Generate content
+    - name: Generate AI content
       env:
         HF_API_TOKEN: ${{ secrets.HF_API_TOKEN }}
       run: python news_generator.py
 
-    - name: Show results
-      run: |
-        echo "📄 Содержание article.txt:"
-        cat article.txt
-        echo ""
-        echo "📊 Содержание tilda_data.json:"
-        cat tilda_data.json
-        echo ""
-        echo "🖼️ Список изображений:"
-        ls -la *.jpg 2>/dev/null || echo "Изображений нет"
-
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: generated-content-${{ github.run_number }}
+        name: ai-content-${{ github.run_number }}
         path: |
           article.txt
           tilda_data.json
@@ -49,8 +38,15 @@ jobs:
 
     - name: Create summary
       run: |
-        echo "## 📊 Результаты генерации" >> $GITHUB_STEP_SUMMARY
+        echo "## 🤖 Результаты нейросетевой генерации" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "✅ **Статья:** $(cat article.txt | wc -c) байт" >> $GITHUB_STEP_SUMMARY
-        echo "🖼️ **Изображения:** $(ls -la *.jpg 2>/dev/null | wc -l || echo 0) файлов" >> $GITHUB_STEP_SUMMARY
-        echo "🕒 **Время:** $(date)" >> $GITHUB_STEP_SUMMARY
+        echo "### 📊 Статистика" >> $GITHUB_STEP_SUMMARY
+        echo "- **Длина статьи:** $(cat article.txt | wc -c) байт" >> $GITHUB_STEP_SUMMARY
+        echo "- **Изображения:** $(ls -la *.jpg 2>/dev/null | wc -l || echo 0) шт." >> $GITHUB_STEP_SUMMARY
+        echo "- **Время:** $(date '+%H:%M:%S')" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 📝 Предпросмотр" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        head -n 2 article.txt >> $GITHUB_STEP_SUMMARY
+        echo '...' >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
