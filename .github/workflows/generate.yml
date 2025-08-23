@@ -3,12 +3,12 @@ name: AI Content Generation
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 */6 * * *'
+    - cron: '0 */6 * * *'  # Каждые 6 часов
 
 jobs:
   generate:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
 
     steps:
     - name: Checkout repository
@@ -22,24 +22,25 @@ jobs:
     - name: Install dependencies
       run: pip install requests
 
-    - name: Generate content
-      env:
-        HF_API_TOKEN: ${{ secrets.HF_API_TOKEN }}
+    - name: Generate AI content
       run: python news_generator.py
 
-    - name: Upload results
+    - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: content-results
+        name: ai-content-${{ github.run_number }}
         path: |
           article.txt
           tilda_data.json
           *.jpg
 
-    - name: Show results
+    - name: Create summary
       run: |
-        echo "📄 Article content:"
-        echo "=================="
-        cat article.txt
-        echo ""
-        echo "✅ Generation completed successfully"
+        echo "## 🤖 Генерация контента завершена" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 📊 Результаты" >> $GITHUB_STEP_SUMMARY
+        echo "- **Статья:** $(cat article.txt | wc -c) байт" >> $GITHUB_STEP_SUMMARY
+        echo "- **Изображения:** $(ls -la *.jpg 2>/dev/null | wc -l) шт." >> $GITHUB_STEP_SUMMARY
+        echo "- **Источник:** OpenRouter + Unsplash" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 🎯 Статус: Успешно ✅" >> $GITHUB_STEP_SUMMARY
