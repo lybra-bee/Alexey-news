@@ -9,12 +9,15 @@ jobs:
   generate:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: write  # Даем права на запись
 
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
+        token: ${{ secrets.GITHUB_TOKEN }}  # Используем автоматический токен
 
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -48,20 +51,31 @@ jobs:
           exit 1
         fi
 
-    - name: Add all generated files
+    - name: Configure Git
       run: |
-        git config --local user.email "github-actions@github.com"
-        git config --local user.name "GitHub Actions"
+        git config --local user.email "github-actions[bot]@users.noreply.github.com"
+        git config --local user.name "github-actions[bot]"
+
+    - name: Add and commit files
+      run: |
         # Добавляем все сгенерированные файлы
-        git add article.txt tilda_data.json
-        # Добавляем любые jpg файлы
-        git add *.jpg || echo "No jpg files to add"
+        git add article.txt tilda_data.json *.jpg 2>/dev/null || true
+        
         # Проверяем есть ли изменения для коммита
         if git diff --staged --quiet; then
-          echo "No changes to commit"
+          echo "🟡 No changes to commit"
         else
-          git commit -m "Auto-generated content $(date +'%Y-%m-%d %H:%M')"
-          git push
+          echo "✅ Committing changes..."
+          git commit -m "🤖 Auto-generated content $(date +'%Y-%m-%d %H:%M')"
+        fi
+
+    - name: Push changes
+      run: |
+        # Пытаемся сделать push
+        if git push origin HEAD:main 2>&1 | grep -q "Everything up-to-date"; then
+          echo "🟡 No changes to push"
+        else
+          echo "✅ Changes pushed successfully"
         fi
 
     - name: Upload artifacts
