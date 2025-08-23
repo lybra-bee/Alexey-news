@@ -4,7 +4,6 @@ on:
   schedule:
     - cron: '0 */12 * * *'  # Каждые 12 часов
   workflow_dispatch:  # Ручной запуск
-  push:  # Запуск при изменении кода
 
 jobs:
   generate-news:
@@ -16,7 +15,7 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v3
       with:
-        token: ${{ secrets.AUTO_UPDATE_TOKEN }}  # Используем токен
+        token: ${{ secrets.GITHUB_TOKEN }}  # Используем встроенный токен
 
     - name: Set up Python
       uses: actions/setup-python@v3
@@ -27,7 +26,6 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install requests
-        echo "✅ Зависимости установлены"
 
     - name: Generate news with AI
       env:
@@ -39,6 +37,17 @@ jobs:
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
+        
+        # Получаем последние изменения
+        git pull origin main --rebase
+        
+        # Добавляем изменения
         git add .
-        git commit -m "Auto-update: $(date +'%Y-%m-%d %H:%M')" || echo "No changes to commit"
-        git push
+        
+        # Коммитим только если есть изменения
+        if git diff --staged --quiet; then
+          echo "No changes to commit"
+        else
+          git commit -m "Auto-update: $(date +'%Y-%m-%d %H:%M')"
+          git push origin main
+        fi
