@@ -8,7 +8,7 @@ on:
 jobs:
   generate:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 15
 
     steps:
     - name: Checkout repository
@@ -22,29 +22,24 @@ jobs:
     - name: Install dependencies
       run: pip install requests
 
-    - name: Generate AI content
+    - name: Generate content
       env:
         HF_API_TOKEN: ${{ secrets.HF_API_TOKEN }}
-      run: |
-        echo "🚀 Запуск генерации с работающими моделями..."
-        python news_generator.py
+      run: python news_generator.py
 
-    - name: Upload artifacts
+    - name: Upload results
       uses: actions/upload-artifact@v4
       with:
-        name: ai-content-${{ github.run_number }}
+        name: content-results
         path: |
           article.txt
           tilda_data.json
           *.jpg
 
-    - name: Create summary
+    - name: Show results
       run: |
-        echo "## 🤖 Генерация через работающие модели" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### 📊 Результаты" >> $GITHUB_STEP_SUMMARY
-        echo "- **Статья:** $(cat article.txt | wc -c) байт" >> $GITHUB_STEP_SUMMARY
-        echo "- **Изображение:** $(ls -la *.jpg 2>/dev/null | head -1 | awk '{print $5}') байт" >> $GITHUB_STEP_SUMMARY
-        echo "- **Модели:** GPT-2 + Stable Diffusion v1-4" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### 🎯 Статус: Успешно" >> $GITHUB_STEP_SUMMARY
+        echo "📄 Article content:"
+        echo "=================="
+        cat article.txt
+        echo ""
+        echo "✅ Generation completed successfully"
