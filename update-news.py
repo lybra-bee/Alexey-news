@@ -6,6 +6,7 @@ import datetime
 import os
 import json
 import random
+import base64
 
 class NewsGenerator:
     def __init__(self):
@@ -65,92 +66,112 @@ class NewsGenerator:
             return self.create_fallback_content()
     
     def generate_image(self, article_text):
-        """Генерация тематического изображения через API"""
+        """Генерация тематического изображения"""
         try:
             # Создаем промпт на основе содержания статьи
             prompt = self.create_image_prompt(article_text)
-            print(f"🖼️ Промпт для изображения: {prompt}")
+            print(f"🖼️ Тема изображения: {prompt}")
             
-            # Используем надежные тематические изображения
-            image_url = self.get_themed_image(prompt)
+            # Используем встроенное SVG изображение
+            image_data_url = self.get_embedded_svg_image(prompt)
             
-            print(f"✅ Изображение выбрано: {image_url}")
-            return image_url
+            print("✅ Встроенное изображение сгенерировано")
+            return image_data_url
             
         except Exception as e:
             print(f"❌ Ошибка генерации изображения: {e}")
-            return "https://i.imgur.com/6Q9W5Za.jpeg"  # Fallback image
-
+            return self.get_embedded_svg_image("ai")
+    
+    def get_embedded_svg_image(self, prompt):
+        """Создает встроенное SVG изображение"""
+        # Цвета в зависимости от темы
+        theme_colors = {
+            "transformer": ("#3498db", "#e74c3c"),
+            "language": ("#9b59b6", "#f1c40f"),
+            "computer": ("#2ecc71", "#e67e22"),
+            "medical": ("#e74c3c", "#3498db"),
+            "research": ("#f39c12", "#8e44ad"),
+            "robot": ("#7f8c8d", "#e74c3c"),
+            "education": ("#27ae60", "#d35400"),
+            "ai": ("#2980b9", "#c0392b"),
+            "neural": ("#8e44ad", "#f39c12")
+        }
+        
+        primary_color, secondary_color = theme_colors.get(prompt, ("#2980b9", "#c0392b"))
+        
+        # SVG изображение
+        svg_content = f'''
+        <svg width="800" height="400" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" style="stop-color:#2c3e50;stop-opacity:1" />
+                    <stop offset="100%" style="stop-color:#34495e;stop-opacity:1" />
+                </linearGradient>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#grad1)"/>
+            
+            <!-- Основные элементы -->
+            <circle cx="200" cy="200" r="60" fill="{primary_color}" opacity="0.7">
+                <animate attributeName="r" values="60;70;60" dur="3s" repeatCount="indefinite"/>
+            </circle>
+            
+            <rect x="400" y="150" width="120" height="120" rx="15" fill="{secondary_color}" opacity="0.7">
+                <animate attributeName="y" values="150;140;150" dur="2s" repeatCount="indefinite"/>
+            </rect>
+            
+            <polygon points="600,200 650,150 700,200 650,250" fill="{primary_color}" opacity="0.8">
+                <animate attributeName="points" values="600,200 650,150 700,200 650,250; 610,200 650,140 690,200 650,260; 600,200 650,150 700,200 650,250" dur="4s" repeatCount="indefinite"/>
+            </polygon>
+            
+            <!-- Текст -->
+            <text x="400" y="320" text-anchor="middle" fill="#ecf0f1" font-family="Arial" font-size="20" font-weight="bold">
+                AI NEWS • {prompt.upper()} • NEURAL NETWORKS
+            </text>
+            
+            <text x="400" y="350" text-anchor="middle" fill="#bdc3c7" font-family="Arial" font-size="14">
+                🤖 Автоматически сгенерировано • {datetime.datetime.now().strftime('%d.%m.%Y')}
+            </text>
+            
+            <!-- Декоративные элементы -->
+            <circle cx="100" cy="100" r="8" fill="#fff" opacity="0.3"/>
+            <circle cx="700" cy="80" r="12" fill="#fff" opacity="0.2"/>
+            <circle cx="750" cy="350" r="6" fill="#fff" opacity="0.4"/>
+            <circle cx="50" cy="350" r="10" fill="#fff" opacity="0.3"/>
+        </svg>
+        '''
+        
+        # Конвертируем в base64
+        encoded = base64.b64encode(svg_content.encode('utf-8')).decode('utf-8')
+        return f"data:image/svg+xml;base64,{encoded}"
+    
     def create_image_prompt(self, article_text):
         """Создает промпт для изображения на основе статьи"""
         content_lower = article_text.lower()
         
-        # Ищем специфичные термины в статье
-        ai_terms = [
-            "трансформер", "transformer", "GPT", "LLM", "deep learning", 
-            "компьютерное зрение", "NLP", "генеративный", "нейросеть",
-            "машинное обучение", "искусственный интеллект"
-        ]
-        
-        for term in ai_terms:
-            if term in content_lower:
-                if "трансформер" in term or "transformer" in term:
-                    return "transformer"
-                elif "GPT" in term or "LLM" in term:
-                    return "language"
-                elif "компьютерное зрение" in term:
-                    return "computer vision"
-                elif "NLP" in term:
-                    return "language"
-                elif "генеративный" in term:
-                    return "ai"
-                elif "медицин" in term or "здоровь" in term:
-                    return "medical"
-                elif "научн" in term or "research" in term:
-                    return "research"
-                elif "образован" in term or "education" in term:
-                    return "education"
-                elif "робот" in term or "robot" in term:
-                    return "robot"
-        
-        return "ai"
-
-    def get_themed_image(self, prompt):
-        """Тематические изображения (надежные прямые ссылки)"""
-        theme = prompt.lower()
-        
-        # Надежные изображения с imgur и других стабильных источников
-        themed_images = {
-            "transformer": "https://i.imgur.com/6Q9W5Za.jpeg",
-            "language": "https://i.imgur.com/8JZ3L4k.jpeg",
-            "computer": "https://i.imgur.com/4V2V1vX.jpeg", 
-            "computer vision": "https://i.imgur.com/4V2V1vX.jpeg",
-            "medical": "https://i.imgur.com/9K7L5Jy.jpeg",
-            "research": "https://i.imgur.com/2V3L6Mz.jpeg",
-            "robot": "https://i.imgur.com/7J8L9Kx.jpeg",
-            "education": "https://i.imgur.com/3V4L5Mz.jpeg",
-            "ai": "https://i.imgur.com/5K6L7Jx.jpeg",
-            "neural": "https://i.imgur.com/1V2L3Kx.jpeg"
+        # Определяем тему по содержанию
+        themes = {
+            "трансформер": "transformer",
+            "transformer": "transformer",
+            "gpt": "language",
+            "llm": "language",
+            "язык": "language",
+            "компьютерное зрение": "computer",
+            "видео": "computer",
+            "медицин": "medical",
+            "здоровь": "medical",
+            "научн": "research",
+            "исследован": "research",
+            "образован": "education",
+            "обучен": "education",
+            "робот": "robot",
+            "автоматизац": "robot"
         }
         
-        # Ищем подходящую тему
-        for keyword, image_url in themed_images.items():
-            if keyword in theme:
-                return image_url
+        for keyword, theme in themes.items():
+            if keyword in content_lower:
+                return theme
         
-        # Случайное AI изображение из надежных источников
-        reliable_ai_images = [
-            "https://i.imgur.com/6Q9W5Za.jpeg",  # AI architecture
-            "https://i.imgur.com/8JZ3L4k.jpeg",  # Neural networks
-            "https://i.imgur.com/4V2V1vX.jpeg",  # Tech vision
-            "https://i.imgur.com/5K6L7Jx.jpeg",  # AI concept
-            "https://i.imgur.com/1V2L3Kx.jpeg",  # Data processing
-            "https://images.unsplash.com/photo-1571171637578-41bc2dd41cd2?w=800&h=400&fit=crop",  # AI brain
-            "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=800&h=400&fit=crop",  # AI chips
-            "https://images.unsplash.com/photo-1555949963-aa79dcee981c?w=800&h=400&fit=crop"   # AI network
-        ]
-        
-        return random.choice(reliable_ai_images)
+        return "ai"
     
     def create_fallback_content(self):
         """Резервный контент если API не работает"""
