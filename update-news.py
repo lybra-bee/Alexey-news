@@ -6,160 +6,168 @@ import datetime
 import os
 import json
 import time
-import base64
+import random
 
 class ContentGenerator:
     def __init__(self):
-        self.hf_token = os.environ['HF_API_TOKEN']
-        self.sd_model = "stabilityai/stable-diffusion-xl-base-1.0"  # Более новая модель
-        self.text_model = "microsoft/DialoGPT-large"
+        self.hf_token = os.environ.get('HF_API_TOKEN', '')
         
-    def wait_for_model(self, model_name, task_type="text-generation"):
-        """Ожидание готовности модели"""
-        print(f"⏳ Ожидание готовности модели {model_name}...")
-        
-        headers = {"Authorization": f"Bearer {self.hf_token}"}
-        url = f"https://api-inference.huggingface.co/models/{model_name}"
-        
-        if task_type == "text-to-image":
-            url += "?wait_for_model=true"
-        
-        max_retries = 10
-        for attempt in range(max_retries):
-            try:
-                response = requests.get(url, headers=headers, timeout=30)
-                if response.status_code == 200:
-                    print("✅ Модель готова к работе")
-                    return True
-                elif response.status_code == 503:
-                    print(f"🔄 Модель загружается... попытка {attempt + 1}/{max_retries}")
-                    time.sleep(10)
-                else:
-                    print(f"⚠️ Статус модели: {response.status_code}")
-                    time.sleep(5)
-            except Exception as e:
-                print(f"⚠️ Ошибка проверки модели: {e}")
-                time.sleep(5)
-        
-        print("❌ Модель не загрузилась за отведенное время")
-        return False
-
     def generate_article(self):
-        """Генерация статьи через HF API"""
+        """Генерация статьи через бесплатный API"""
         print("🔄 Генерация статьи...")
         
-        if not self.wait_for_model(self.text_model):
-            raise Exception("Модель для текста не загрузилась")
+        # Пробуем разные бесплатные модели
+        models = [
+            "microsoft/DialoGPT-medium",
+            "facebook/blenderbot-400M-distill",
+            "mosaicml/mpt-7b-chat",
+            "togethercomputer/RedPajama-INCITE-7B-Chat"
+        ]
         
-        headers = {
-            "Authorization": f"Bearer {self.hf_token}",
-            "Content-Type": "application/json"
-        }
+        for model in models:
+            try:
+                headers = {
+                    "Authorization": f"Bearer {self.hf_token}" if self.hf_token else "",
+                    "Content-Type": "application/json"
+                }
+                
+                prompt = """Напиши новостную статью о последних достижениях в области искусственного интеллекта. 
+Опиши новые технологии и их применение. Объем: 300-400 слов. Только текст без заголовков."""
+                
+                payload = {
+                    "inputs": prompt,
+                    "parameters": {
+                        "max_length": 500,
+                        "temperature": 0.9,
+                        "do_sample": True,
+                        "return_full_text": False
+                    }
+                }
+                
+                print(f"Пробуем модель: {model}")
+                response = requests.post(
+                    f"https://api-inference.huggingface.co/models/{model}",
+                    headers=headers,
+                    json=payload,
+                    timeout=45
+                )
+                
+                if response.status_code == 200:
+                    result = response.json()
+                    if isinstance(result, list) and len(result) > 0:
+                        article = result[0]['generated_text'].strip()
+                        print(f"✅ Статья сгенерирована моделью {model}")
+                        return article
+                
+                time.sleep(2)  # Пауза между попытками
+                
+            except Exception as e:
+                print(f"Ошибка с моделью {model}: {e}")
+                continue
         
-        prompt = """Создай новостную статью на 300-400 слов о последних достижениях в области искусственного интеллекта в 2024 году. 
-Опиши конкретные технологии, компании и реальные применения. Статья должна быть информативной и актуальной.
-Формат: обычный текст без заголовков."""
+        # Если все API не сработали, генерируем локально
+        return self.generate_local_article()
+
+    def generate_local_article(self):
+        """Локальная генерация статьи если API не работают"""
+        print("🔄 Локальная генерация статьи...")
         
-        payload = {
-            "inputs": prompt,
-            "parameters": {
-                "max_length": 600,
-                "temperature": 0.85,
-                "do_sample": True,
-                "return_full_text": False
-            }
-        }
+        themes = [
+            """В 2024 году искусственный интеллект продолжает стремительно развиваться. Новые языковые модели демонстрируют удивительные способности в понимании и генерации текста. 
+Исследователи из ведущих tech-компаний представили инновационные архитектуры нейронных сетей, которые значительно эффективнее предыдущих версий. 
+В области компьютерного зрения достигнут прогресс в распознавании объектов и создании синтетических изображений. 
+Многие стартапы активно внедряют AI-решения в медицину, образование и бизнес-процессы. 
+Эксперты прогнозируют, что в ближайшие годы искусственный интеллект станет неотъемлемой частью повседневной жизни.""",
+
+            """Современные нейросетевые технологии открывают новые горизонты для креативных индустрий. Генеративные модели позволяют создавать уникальный контент, 
+от текстов до изображений и музыки. В 2024 году особое внимание уделяется этическим аспектам использования ИИ и разработке ответственных алгоритмов. 
+Развитие open-source сообщества способствует демократизации технологий, делая их доступными для более широкого круга разработчиков. 
+Квантовые вычисления и нейроморфные процессоры promise ускорить обработку данных и сделать ИИ еще более эффективным."""
+        ]
+        
+        return random.choice(themes)
+
+    def generate_image(self):
+        """Генерация изображения через бесплатный API"""
+        print("🔄 Генерация изображения...")
         
         try:
+            # Пробуем Stable Diffusion
+            headers = {
+                "Authorization": f"Bearer {self.hf_token}" if self.hf_token else "",
+                "Content-Type": "application/json"
+            }
+            
+            prompt = "futuristic artificial intelligence, neural network, digital art, blue purple colors, technology concept"
+            
+            payload = {
+                "inputs": prompt,
+                "parameters": {
+                    "width": 1024,
+                    "height": 512,
+                    "num_inference_steps": 20
+                }
+            }
+            
             response = requests.post(
-                f"https://api-inference.huggingface.co/models/{self.text_model}",
+                "https://api-inference.huggingface.co/models/runwayml/stable-diffusion-v1-5",
                 headers=headers,
                 json=payload,
                 timeout=120
             )
             
-            response.raise_for_status()
-            result = response.json()
-            
-            if isinstance(result, list) and len(result) > 0:
-                article = result[0]['generated_text'].strip()
-                print("✅ Статья сгенерирована")
-                return article
-            else:
-                raise Exception("Неверный формат ответа от API")
+            if response.status_code == 200:
+                timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+                image_filename = f"article_image_{timestamp}.jpg"
                 
-        except Exception as e:
-            print(f"❌ Ошибка генерации текста: {e}")
-            raise
-
-    def generate_image(self, article_text):
-        """Генерация изображения по содержанию статьи"""
-        print("🔄 Генерация изображения...")
-        
-        if not self.wait_for_model(self.sd_model, "text-to-image"):
-            raise Exception("Модель для изображений не загрузилась")
-        
-        headers = {
-            "Authorization": f"Bearer {self.hf_token}",
-            "Content-Type": "application/json"
-        }
-        
-        # Создаем детальный промпт для изображения
-        image_prompt = """
-futuristic artificial intelligence neural network, digital brain, glowing circuits, 
-blue and purple light, cyberpunk style, high technology, intricate details, 
-4k resolution, professional digital art, trending on artstation
-        """
-        
-        payload = {
-            "inputs": image_prompt,
-            "parameters": {
-                "width": 1024,
-                "height": 512,
-                "num_inference_steps": 25,
-                "guidance_scale": 8.0,
-                "wait_for_model": True
-            }
-        }
-        
-        try:
-            response = requests.post(
-                f"https://api-inference.huggingface.co/models/{self.sd_model}",
-                headers=headers,
-                json=payload,
-                timeout=180  # Увеличиваем таймаут для генерации изображений
-            )
+                with open(image_filename, 'wb') as f:
+                    f.write(response.content)
+                
+                print("✅ Изображение сгенерировано")
+                return image_filename
             
+        except Exception as e:
+            print(f"Ошибка генерации изображения: {e}")
+        
+        # Если API не сработал, используем placeholder
+        return self.download_placeholder()
+
+    def download_placeholder(self):
+        """Скачивание красивого placeholder"""
+        try:
+            placeholders = [
+                "https://images.unsplash.com/photo-1677442135135-416f8aa26a5b?w=1024&h=512&fit=crop",
+                "https://images.unsplash.com/photo-1573164713714-d95e436ab8d6?w=1024&h=512&fit=crop",
+                "https://images.unsplash.com/photo-1535223289827-42f1e9919769?w=1024&h=512&fit=crop"
+            ]
+            
+            response = requests.get(random.choice(placeholders), timeout=30)
             response.raise_for_status()
             
-            # Сохраняем изображение
             timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
             image_filename = f"article_image_{timestamp}.jpg"
             
             with open(image_filename, 'wb') as f:
                 f.write(response.content)
             
-            print("✅ Изображение сгенерировано и сохранено")
+            print("✅ Использован placeholder из Unsplash")
             return image_filename
             
-        except Exception as e:
-            print(f"❌ Ошибка генерации изображения: {e}")
-            raise
+        except:
+            print("⚠️ Не удалось скачать placeholder")
+            return None
 
     def prepare_for_tilda(self, article_text, image_path):
         """Подготовка данных для Tilda"""
         print("📝 Подготовка данных для Tilda...")
         
         tilda_data = {
-            "version": "1.0",
-            "title": "Новости нейросетей и ИИ",
+            "title": "Новости нейросетей и технологий",
             "date": datetime.datetime.now().strftime("%d.%m.%Y %H:%M"),
             "content": article_text,
-            "image_filename": image_path,
-            "short_description": article_text[:120] + "..." if len(article_text) > 120 else article_text,
-            "tags": ["AI", "нейросети", "технологии", "машинное обучение"],
-            "seo_title": "Последние новости искусственного интеллекта и нейросетей",
-            "seo_description": "Свежие статьи о развитии технологий ИИ, машинного обучения и нейронных сетей"
+            "image_path": image_path,
+            "short_description": article_text[:150] + "..." if len(article_text) > 150 else article_text,
+            "tags": ["AI", "нейросети", "технологии"]
         }
         
         # Сохраняем в JSON
@@ -174,44 +182,46 @@ blue and purple light, cyberpunk style, high technology, intricate details,
 
     def generate_content(self):
         """Основная функция генерации контента"""
+        print("🚀 Запуск генерации контента...")
+        
         try:
             # Генерируем статью
             article_text = self.generate_article()
+            print(f"📄 Длина статьи: {len(article_text)} символов")
             
             # Генерируем изображение
-            image_path = self.generate_image(article_text)
+            image_path = self.generate_image()
             
             # Подготавливаем для Tilda
             tilda_data = self.prepare_for_tilda(article_text, image_path)
             
-            print("✅ Генерация завершена успешно!")
+            print("✅ Генерация завершена!")
             return tilda_data
             
         except Exception as e:
-            print(f"❌ Критическая ошибка: {e}")
+            print(f"❌ Ошибка: {e}")
             return None
 
 def main():
-    # Проверяем наличие токена
-    if 'HF_API_TOKEN' not in os.environ:
-        print("❌ Ошибка: HF_API_TOKEN не установлен в переменных окружения")
-        print("Добавьте токен в Secrets GitHub: HF_API_TOKEN=your_token_here")
-        return
+    print("🤖 Генератор новостей AI")
+    print("=" * 50)
     
     generator = ContentGenerator()
     result = generator.generate_content()
     
     if result:
-        print("\n" + "="*60)
-        print("РЕЗУЛЬТАТЫ ГЕНЕРАЦИИ:")
+        print("\n" + "=" * 50)
+        print("📊 РЕЗУЛЬТАТЫ:")
         print(f"📄 Статья: {len(result['content'])} символов")
-        print(f"🖼️ Изображение: {result['image_filename']}")
-        print(f"💾 Данные сохранены в: tilda_data.json, article.txt")
-        print("="*60)
+        print(f"🖼️ Изображение: {result['image_path']}")
+        print("💾 Данные сохранены в tilda_data.json и article.txt")
+        print("=" * 50)
         
-        # Показываем превью статьи
-        print("\n📋 Превью статьи:")
+        # Показываем начало статьи
+        print("\n📋 Начало статьи:")
         print(result['content'][:200] + "...")
+    else:
+        print("❌ Не удалось сгенерировать контент")
 
 if __name__ == "__main__":
     main()
