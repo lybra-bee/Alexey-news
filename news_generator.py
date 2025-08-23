@@ -6,21 +6,23 @@ import datetime
 import os
 import json
 import time
+import random
 
 class ContentGenerator:
     def __init__(self):
         self.hf_token = os.environ.get('HF_API_TOKEN', '')
-        self.text_model = "mistralai/Mistral-7B-Instruct-v0.2"
-        self.image_model = "stabilityai/stable-diffusion-2-1"
+        # ИСПРАВЛЕННЫЕ МОДЕЛИ (работающие):
+        self.text_model = "microsoft/DialoGPT-large"  # Работающая модель
+        self.image_model = "runwayml/stable-diffusion-v1-5"  # Работающая модель
         
     def wait_for_model(self, model_name):
         """Ожидание готовности модели"""
         print(f"⏳ Ожидание готовности модели {model_name}...")
         
-        headers = {"Authorization": f"Bearer {self.hf_token}"}
+        headers = {"Authorization": f"Bearer {self.hf_token}"} if self.hf_token else {}
         url = f"https://api-inference.huggingface.co/models/{model_name}"
         
-        for attempt in range(12):  # 2 минуты ожидания
+        for attempt in range(6):  # 1 минута ожидания
             try:
                 response = requests.get(url, headers=headers, timeout=10)
                 if response.status_code == 200:
@@ -44,6 +46,10 @@ class ContentGenerator:
         """Генерация статьи через нейросеть"""
         print("🔄 Генерация статьи через нейросеть...")
         
+        if not self.hf_token:
+            print("⚠️ Токен отсутствует, используем резервную генерацию")
+            return self.create_fallback_article()
+            
         if not self.wait_for_model(self.text_model):
             return self.create_fallback_article()
         
@@ -52,16 +58,13 @@ class ContentGenerator:
             "Content-Type": "application/json"
         }
         
-        prompt = """<s>[INST] Напиши новостную статью на 250-300 слов о последних достижениях в области искусственного интеллекта. 
-        Опиши конкретные технологии, компании и их применение. Статья должна быть информативной и уникальной.
-        Формат: обычный текст без заголовков. [/INST]"""
+        prompt = "Напиши новостную статью на 200 слов о последних достижениях в области искусственного интеллекта и нейронных сетей."
         
         payload = {
             "inputs": prompt,
             "parameters": {
-                "max_new_tokens": 500,
-                "temperature": 0.8,
-                "top_p": 0.9,
+                "max_length": 400,
+                "temperature": 0.9,
                 "do_sample": True,
                 "return_full_text": False
             }
@@ -72,20 +75,17 @@ class ContentGenerator:
                 f"https://api-inference.huggingface.co/models/{self.text_model}",
                 headers=headers,
                 json=payload,
-                timeout=120
+                timeout=45
             )
             
             if response.status_code == 200:
                 result = response.json()
                 if isinstance(result, list) and len(result) > 0:
                     article = result[0]['generated_text'].strip()
-                    # Очищаем от тегов инструкций
-                    article = article.replace('[INST]', '').replace('[/INST]', '')
-                    article = article.split('</s>')[0].strip()
                     print("✅ Статья сгенерирована нейросетью")
                     return article
             
-            print("⚠️ Нейросеть вернула неожиданный ответ, используем fallback")
+            print("⚠️ Нейросеть вернула неожиданный ответ")
             return self.create_fallback_article()
             
         except Exception as e:
@@ -94,41 +94,25 @@ class ContentGenerator:
 
     def create_fallback_article(self):
         """Резервная генерация статьи"""
-        print("🔄 Используем резервную генерацию...")
+        print("🔄 Используем резервную генерацию статьи...")
         
-        themes = [
-            "OpenAI представила новую версию GPT-4 с улучшенными возможностями понимания контекста",
-            "Google DeepMind анонсировал прорыв в области reinforcement learning",
-            "Новые архитектуры трансформеров демонстрируют беспрецедентную эффективность",
-            "Развитие мультимодальных моделей позволяет обрабатывать текст, изображения и аудио одновременно"
+        articles = [
+            "OpenAI представила новую версию GPT-4 с улучшенными возможностями понимания контекста и генерации текста. Эта технология позволяет значительно улучшить качество диалоговых систем и автоматического создания контента.",
+            "Google DeepMind анонсировал прорыв в области reinforcement learning. Новые алгоритмы демонстрируют беспрецедентную эффективность в обучении сложным задачам, что открывает возможности для создания более advanced AI систем.",
+            "Развитие мультимодальных моделей позволяет обрабатывать текст, изображения и аудио одновременно. Это революционное достижение меняет подход к созданию универсальных искусственных интеллектов.",
+            "Новые архитектуры трансформеров показывают на 40% лучшую производительность при меньших вычислительных затратах. Эксперты отмечают, что это ускорит внедрение AI технологий в повседневную жизнь."
         ]
         
-        details = [
-            "Эта технология позволяет значительно улучшить качество генерации текста и понимание сложных запросов.",
-            "Исследователи добились значительного прогресса в области обучения с подкреплением для сложных сред.",
-            "Современные модели показывают на 40% лучшую производительность при меньших вычислительных затратах.",
-            "Новые подходы к обучению позволяют создавать более универсальные и адаптивные системы ИИ."
-        ]
-        
-        applications = [
-            "Технология уже применяется в customer service, образовании и научных исследованиях.",
-            "Разработка открывает новые возможности для создания автономных систем и робототехники.",
-            "Улучшенная эффективность позволяет развертывать модели на менее мощном оборудовании.",
-            "Мультимодальные системы находят применение в медицине, анализе данных и творческих индустриях."
-        ]
-        
-        article = (
-            f"{random.choice(themes)}. {random.choice(details)} "
-            f"{random.choice(applications)} Эксперты отмечают, что это открывает новые "
-            f"горизонты для развития искусственного интеллекта и его интеграции в повседневную жизнь."
-        )
-        
-        return article
+        return random.choice(articles)
 
     def generate_image(self):
         """Генерация изображения через нейросеть"""
         print("🔄 Генерация изображения через нейросеть...")
         
+        if not self.hf_token:
+            print("⚠️ Токен отсутствует, используем резервное изображение")
+            return self.download_fallback_image()
+            
         if not self.wait_for_model(self.image_model):
             return self.download_fallback_image()
         
@@ -137,19 +121,14 @@ class ContentGenerator:
             "Content-Type": "application/json"
         }
         
-        prompts = [
-            "futuristic artificial intelligence concept, neural networks, digital brain, glowing connections, blue and purple light, cyberpunk style, high technology, intricate details, 4k resolution",
-            "abstract neural network architecture, data flow, connections, futuristic technology, digital art, vibrant colors, complex patterns, AI concept, machine learning",
-            "high-tech AI system, quantum computing, holographic interface, futuristic technology, glowing elements, sci-fi style, advanced robotics, innovation"
-        ]
+        prompt = "futuristic artificial intelligence, neural network, digital art, technology concept"
         
         payload = {
-            "inputs": random.choice(prompts),
+            "inputs": prompt,
             "parameters": {
                 "width": 1024,
                 "height": 512,
-                "num_inference_steps": 25,
-                "guidance_scale": 7.5
+                "num_inference_steps": 20
             }
         }
         
@@ -158,7 +137,7 @@ class ContentGenerator:
                 f"https://api-inference.huggingface.co/models/{self.image_model}",
                 headers=headers,
                 json=payload,
-                timeout=180
+                timeout=120
             )
             
             if response.status_code == 200:
@@ -171,7 +150,7 @@ class ContentGenerator:
                 print("✅ Изображение сгенерировано нейросетью")
                 return image_filename
             
-            print("⚠️ Нейросеть изображений не ответила, используем fallback")
+            print("⚠️ Нейросеть изображений не ответила")
             return self.download_fallback_image()
             
         except Exception as e:
@@ -199,8 +178,8 @@ class ContentGenerator:
             print("✅ Использовано резервное изображение")
             return image_filename
             
-        except:
-            print("❌ Не удалось загрузить резервное изображение")
+        except Exception as e:
+            print(f"❌ Не удалось загрузить резервное изображение: {e}")
             return None
 
     def prepare_for_tilda(self, article_text, image_path):
@@ -211,11 +190,10 @@ class ContentGenerator:
             "title": "Новости ИИ и нейросетей",
             "date": datetime.datetime.now().strftime("%d.%m.%Y %H:%M"),
             "content": article_text,
-            "image_path": image_path,
+            "image_path": image_path or "no_image.jpg",
             "short_description": article_text[:120] + "..." if len(article_text) > 120 else article_text,
             "tags": ["AI", "нейросети", "технологии", "машинное обучение"],
-            "generated_with_ai": True,
-            "model_used": self.text_model
+            "generated_with_ai": True
         }
         
         with open('tilda_data.json', 'w', encoding='utf-8') as f:
@@ -229,20 +207,17 @@ class ContentGenerator:
     def generate_content(self):
         """Основная функция генерации"""
         print("🚀 Запуск нейросетевой генерации...")
-        print(f"🔑 Токен: {'есть' if self.hf_token else 'отсутствует'}")
+        print(f"🔑 Токен HF: {'есть' if self.hf_token else 'отсутствует'}")
         
         try:
-            # Генерируем статью
             article_text = self.generate_article()
             print(f"📄 Длина: {len(article_text)} символов")
             
-            # Генерируем изображение
             image_path = self.generate_image()
             
-            # Подготавливаем данные
             tilda_data = self.prepare_for_tilda(article_text, image_path)
             
-            print("✅ Нейросетевая генерация завершена!")
+            print("✅ Генерация завершена!")
             return tilda_data
             
         except Exception as e:
@@ -253,10 +228,6 @@ def main():
     print("🤖 Нейросетевой генератор контента")
     print("=" * 50)
     
-    if not os.environ.get('HF_API_TOKEN'):
-        print("⚠️  Внимание: HF_API_TOKEN не установлен")
-        print("💡 Добавьте токен в Secrets GitHub")
-    
     generator = ContentGenerator()
     result = generator.generate_content()
     
@@ -265,15 +236,10 @@ def main():
         print("📊 РЕЗУЛЬТАТЫ:")
         print(f"📄 Статья: {len(result['content'])} символов")
         print(f"🖼️ Изображение: {result['image_path']}")
-        print(f"🤖 Сгенерировано нейросетью: {result['generated_with_ai']}")
         print("💾 Данные сохранены")
         print("=" * 50)
-        
-        print("\n📋 ПРЕВЬЮ:")
-        print(result['content'][:200] + "...")
     else:
         print("❌ Генерация не удалась")
 
 if __name__ == "__main__":
-    import random
     main()
