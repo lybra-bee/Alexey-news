@@ -8,16 +8,11 @@ on:
 jobs:
   generate:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      contents: write  # Даем права на запись
+    timeout-minutes: 15
 
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
-        token: ${{ secrets.GITHUB_TOKEN }}  # Используем автоматический токен
 
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -28,61 +23,34 @@ jobs:
       run: pip install requests
 
     - name: Generate content
+      env:
+        HF_API_TOKEN: ${{ secrets.HF_API_TOKEN }}
       run: python news_generator.py
 
-    - name: List generated files
-      run: ls -la
-
-    - name: Check if files exist
+    - name: Show results
       run: |
-        if [ -f "article.txt" ] && [ -f "tilda_data.json" ]; then
-          echo "✅ Основные файлы созданы"
-          # Ищем файлы изображений
-          IMAGE_FILES=$(find . -name "article_image_*.jpg" -type f)
-          if [ -n "$IMAGE_FILES" ]; then
-            echo "✅ Найдены файлы изображений:"
-            echo "$IMAGE_FILES"
-          else
-            echo "⚠️ Файлы изображений не найдены, создаем заглушку"
-            touch "article_image_placeholder.jpg"
-          fi
-        else
-          echo "❌ Основные файлы не созданы"
-          exit 1
-        fi
-
-    - name: Configure Git
-      run: |
-        git config --local user.email "github-actions[bot]@users.noreply.github.com"
-        git config --local user.name "github-actions[bot]"
-
-    - name: Add and commit files
-      run: |
-        # Добавляем все сгенерированные файлы
-        git add article.txt tilda_data.json *.jpg 2>/dev/null || true
-        
-        # Проверяем есть ли изменения для коммита
-        if git diff --staged --quiet; then
-          echo "🟡 No changes to commit"
-        else
-          echo "✅ Committing changes..."
-          git commit -m "🤖 Auto-generated content $(date +'%Y-%m-%d %H:%M')"
-        fi
-
-    - name: Push changes
-      run: |
-        # Пытаемся сделать push
-        if git push origin HEAD:main 2>&1 | grep -q "Everything up-to-date"; then
-          echo "🟡 No changes to push"
-        else
-          echo "✅ Changes pushed successfully"
-        fi
+        echo "📄 Содержание article.txt:"
+        cat article.txt
+        echo ""
+        echo "📊 Содержание tilda_data.json:"
+        cat tilda_data.json
+        echo ""
+        echo "🖼️ Список изображений:"
+        ls -la *.jpg 2>/dev/null || echo "Изображений нет"
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: generated-content
+        name: generated-content-${{ github.run_number }}
         path: |
           article.txt
           tilda_data.json
           *.jpg
+
+    - name: Create summary
+      run: |
+        echo "## 📊 Результаты генерации" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "✅ **Статья:** $(cat article.txt | wc -c) байт" >> $GITHUB_STEP_SUMMARY
+        echo "🖼️ **Изображения:** $(ls -la *.jpg 2>/dev/null | wc -l || echo 0) файлов" >> $GITHUB_STEP_SUMMARY
+        echo "🕒 **Время:** $(date)" >> $GITHUB_STEP_SUMMARY
