@@ -6,7 +6,6 @@ import datetime
 import os
 import json
 import random
-import time
 
 class ContentGenerator:
     def __init__(self):
@@ -35,10 +34,10 @@ class ContentGenerator:
         ]
         
         self.image_urls = [
-            "https://images.unsplash.com/photo-1677442135135-416f8aa26a5b",
-            "https://images.unsplash.com/photo-1573164713714-d95e436ab8d6",
-            "https://images.unsplash.com/photo-1535223289827-42f1e9919769",
-            "https://images.unsplash.com/photo-1620712943543-bcc4688e7485"
+            "https://images.unsplash.com/photo-1677442135135-416f8aa26a5b?w=1024&h=512&fit=crop",
+            "https://images.unsplash.com/photo-1573164713714-d95e436ab8d6?w=1024&h=512&fit=crop",
+            "https://images.unsplash.com/photo-1535223289827-42f1e9919769?w=1024&h=512&fit=crop",
+            "https://images.unsplash.com/photo-1620712943543-bcc4688e7485?w=1024&h=512&fit=crop"
         ]
 
     def generate_article(self):
@@ -54,9 +53,6 @@ class ContentGenerator:
         
         try:
             image_url = random.choice(self.image_urls)
-            # Добавляем параметры для нужного размера
-            image_url += "?w=1024&h=512&fit=crop&auto=format"
-            
             response = requests.get(image_url, timeout=30)
             response.raise_for_status()
             
@@ -71,13 +67,7 @@ class ContentGenerator:
             
         except Exception as e:
             print(f"❌ Ошибка загрузки изображения: {e}")
-            # Создаем пустой файл как заглушку
-            timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
-            image_filename = f"article_image_{timestamp}.jpg"
-            with open(image_filename, 'w') as f:
-                f.write("")  # Создаем пустой файл
-            print(f"✅ Создан файл-заглушка: {image_filename}")
-            return image_filename
+            return None
 
     def prepare_for_tilda(self, article_text, image_path):
         """Подготовка данных для Tilda"""
@@ -87,7 +77,7 @@ class ContentGenerator:
             "title": "Новости нейросетей и технологий",
             "date": datetime.datetime.now().strftime("%d.%m.%Y %H:%M"),
             "content": article_text,
-            "image_path": image_path,
+            "image_path": image_path or "no_image.jpg",
             "short_description": article_text[:150] + "..." if len(article_text) > 150 else article_text,
             "tags": ["AI", "нейросети", "технологии", "машинное обучение"]
         }
@@ -138,10 +128,6 @@ def main():
         print(f"🖼️ Изображение: {result['image_path']}")
         print("💾 Данные сохранены в tilda_data.json и article.txt")
         print("=" * 50)
-        
-        # Показываем начало статьи
-        print("\n📋 Начало статьи:")
-        print(result['content'][:200] + "...")
     else:
         print("❌ Не удалось сгенерировать контент")
 
