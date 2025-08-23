@@ -9,13 +9,13 @@ jobs:
   generate-news:
     runs-on: ubuntu-latest
     permissions:
-      contents: write  # Даем права на запись
+      contents: write
     
     steps:
     - name: Checkout repository
       uses: actions/checkout@v3
       with:
-        token: ${{ secrets.GITHUB_TOKEN }}  # Используем встроенный токен
+        token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Set up Python
       uses: actions/setup-python@v3
@@ -37,17 +37,6 @@ jobs:
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
-        
-        # Получаем последние изменения
-        git pull origin main --rebase
-        
-        # Добавляем изменения
         git add .
-        
-        # Коммитим только если есть изменения
-        if git diff --staged --quiet; then
-          echo "No changes to commit"
-        else
-          git commit -m "Auto-update: $(date +'%Y-%m-%d %H:%M')"
-          git push origin main
-        fi
+        git diff --staged --quiet || git commit -m "Auto-update: $(date +'%Y-%m-%d %H:%M')"
+        git push origin main
